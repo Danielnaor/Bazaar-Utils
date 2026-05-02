@@ -44,6 +44,12 @@ import java.util.*;
  */
 @DataSource
 public final class ApiSnapshotDataSource extends SnapshotSource {
+    private static final BazaarLogger LOG = BazaarLogger.of(ApiSnapshotDataSource.class);
+
+    public BazaarLogger log() {
+        return LOG;
+    }
+
     public ApiSnapshotDataSource() {}
 
     /**
@@ -89,7 +95,7 @@ public final class ApiSnapshotDataSource extends SnapshotSource {
                                 .filter(order -> isWithinSnapshotWindow(order, postApplyData))
                                 .toList();
                     },
-                    NotificationType.ORDERDATA,
+                    NotificationType.ORDER_LIFECYCLE,
                     origin);
 
             // Stamp AFTER snapshotProduct so the baseline guard is never self-defeating.
@@ -116,7 +122,7 @@ public final class ApiSnapshotDataSource extends SnapshotSource {
         if (!changed.isEmpty()) {
             new BazaarDataBatchUpdateEvent(Collections.unmodifiableSet(changed), origin).post(BazaarUtils.EVENT_BUS);
 
-            PlayerActionUtil.notifyAll("%s — %d products changed".formatted(origin.describe(), changed.size()), NotificationType.BAZAARDATA);
+            PlayerLogger.debug("%s — %d products changed".formatted(origin.describe(), changed.size()), NotificationType.PRICE_DATA, LOG);
         }
     }
 

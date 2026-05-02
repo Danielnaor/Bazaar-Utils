@@ -10,7 +10,8 @@ import com.github.mkram17.bazaarutils.events.BUListener;
 import com.github.mkram17.bazaarutils.events.bazaar.UserOrderEvent;
 import com.github.mkram17.bazaarutils.events.bazaar.data.BazaarDataUpdateEvent;
 import com.github.mkram17.bazaarutils.misc.NotificationType;
-import com.github.mkram17.bazaarutils.utils.PlayerActionUtil;
+import com.github.mkram17.bazaarutils.utils.BazaarLogger;
+import com.github.mkram17.bazaarutils.utils.PlayerLogger;
 import com.github.mkram17.bazaarutils.utils.bazaar.market.order.Order;
 import com.github.mkram17.bazaarutils.utils.bazaar.market.PriceType;
 import com.github.mkram17.bazaarutils.utils.bazaar.market.order.OrderSlotPosition;
@@ -44,6 +45,9 @@ import java.util.function.Function;
  * </ol>
  */
 public abstract class SnapshotSource extends BUListener {
+    /** Returns the logger used by the shared commit infrastructure to attribute lines to the subclass. */
+    public abstract BazaarLogger log();
+
     /**
      * Applies book levels for one product and computes (but does not apply) fill
      * inferences.
@@ -220,7 +224,7 @@ public abstract class SnapshotSource extends BUListener {
 
             events.forEach((event) -> event.post(BazaarUtils.EVENT_BUS));
 
-            if (NotificationType.ORDERDATA.isEnabled()) {
+            if (NotificationType.ORDER_LIFECYCLE.isEnabled()) {
                 long placed = deltas.stream().filter(it -> it instanceof OrderDelta.Place).count();
                 long evicted = deltas.stream().filter(it -> it instanceof OrderDelta.Evict).count();
                 long updated = deltas.stream().filter(it -> it instanceof OrderDelta.Update).count();
@@ -228,8 +232,8 @@ public abstract class SnapshotSource extends BUListener {
                 long corrected = deltas.stream().filter(it -> it instanceof OrderDelta.PriceCorrection).count();
                 long reanchored = deltas.stream().filter(it -> it instanceof OrderDelta.Reanchor).count();
 
-                PlayerActionUtil.notifyAll("%s — %s committed: Δ%d placed, Δ%d evicted, Δ%d updated, Δ%d expired, Δ%d price-corrected, Δ%d reanchored".formatted(
-                        origin.describe(), productId, placed, evicted, updated, expired, corrected, reanchored), NotificationType.ORDERDATA);
+                PlayerLogger.debug("%s — %s committed: Δ%d placed, Δ%d evicted, Δ%d updated, Δ%d expired, Δ%d price-corrected, Δ%d reanchored".formatted(
+                        origin.describe(), productId, placed, evicted, updated, expired, corrected, reanchored), NotificationType.ORDER_LIFECYCLE, log());
             }
         }
 

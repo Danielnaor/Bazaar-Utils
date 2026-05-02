@@ -7,7 +7,8 @@ import com.github.mkram17.bazaarutils.data.bazaar.pipeline.OrderDelta;
 import com.github.mkram17.bazaarutils.data.bazaar.pipeline.OrderResolver;
 import com.github.mkram17.bazaarutils.events.bazaar.chat.BazaarChatEvent;
 import com.github.mkram17.bazaarutils.misc.NotificationType;
-import com.github.mkram17.bazaarutils.utils.PlayerActionUtil;
+import com.github.mkram17.bazaarutils.utils.BazaarLogger;
+import com.github.mkram17.bazaarutils.utils.PlayerLogger;
 import com.github.mkram17.bazaarutils.utils.Util;
 import com.github.mkram17.bazaarutils.utils.annotations.modules.DataSource;
 import com.github.mkram17.bazaarutils.data.bazaar.BazaarDataOrigin;
@@ -37,11 +38,13 @@ import java.util.UUID;
  */
 @DataSource
 public final class OrderFilledDataSource extends ChatOrderSource {
+    private static final BazaarLogger LOG = BazaarLogger.of(OrderFilledDataSource.class);
+
     @Subscription
     public void onBuyOrderFilled(BazaarChatEvent.BuyOrderFilled event) {
         var product = ProductInfo.fromDisplayName(event.product).orElse(null);
         if (product == null) {
-            Util.logMessage("Fill skipped — unknown product: %s".formatted(event.product));
+            LOG.warn("Fill skipped — unknown product: {}", event.product);
 
             return;
         }
@@ -53,7 +56,7 @@ public final class OrderFilledDataSource extends ChatOrderSource {
     public void onSellOfferFilled(BazaarChatEvent.SellOfferFilled event) {
         var product = ProductInfo.fromDisplayName(event.product).orElse(null);
         if (product == null) {
-            Util.logMessage("Fill skipped — unknown product: %s".formatted(event.product));
+            LOG.warn("Fill skipped — unknown product: {}", event.product);
 
             return;
         }
@@ -91,7 +94,7 @@ public final class OrderFilledDataSource extends ChatOrderSource {
                     origin.timestamp(), origin.timestamp(), true,
                     origin.timestamp() + 7L * 24 * 3_600_000L);
 
-            PlayerActionUtil.notifyAll("%s — Synthesized filled order (no prior record, likely coop path): %s".formatted(origin.describe(), synthesized.describe()), NotificationType.ORDERDATA);
+            PlayerLogger.debug("%s — Synthesized filled order (no prior record, likely coop path): %s".formatted(origin.describe(), synthesized.describe()), NotificationType.ORDER_LIFECYCLE, LOG);
 
             commit(new OrderDelta.Place(synthesized, BookMutation.NONE), origin);
 
@@ -107,17 +110,17 @@ public final class OrderFilledDataSource extends ChatOrderSource {
         // or when the fill chat message arrives before the player opens the orders screen.
         int unaccounted = target.unfilledAmount();
 
-        PlayerActionUtil.notifyAll("%s — Filled — %s %s %dx @ %.4f (Δunaccounted=%d)".formatted(
+        PlayerLogger.debug("%s — Filled — %s %s %dx @ %.4f (Δunaccounted=%d)".formatted(
                 origin.describe(),
                 TransactionType.of(side, TransactionType.Method.ORDER).getPriceType(),
                 target.productId(), target.originalAmount(), target.pricePerItem(),
-                unaccounted), NotificationType.ORDERDATA);
+                unaccounted), NotificationType.ORDER_LIFECYCLE, LOG);
 
         if (unaccounted > 0) {
-            PlayerActionUtil.notifyAll("%s — Book decrement: %s %s Δ%d @ %.4f (unaccounted close-out)".formatted(
+            PlayerLogger.debug("%s — Book decrement: %s %s Δ%d @ %.4f (unaccounted close-out)".formatted(
                     origin.describe(),
                     TransactionType.of(side, TransactionType.Method.ORDER).getPriceType(),
-                    target.productId(), unaccounted, target.pricePerItem()), NotificationType.BAZAARDATA);
+                    target.productId(), unaccounted, target.pricePerItem()), NotificationType.PRICE_DATA, LOG);
         }
 
         commit(
